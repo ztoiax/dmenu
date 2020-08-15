@@ -189,7 +189,7 @@ drawmenu(void)
 {
 	unsigned int curpos;
 	struct item *item;
-	int x = 0, y = 0, w;
+	int x = 0, y = 0, fh = drw->fonts->h, w;
 
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	drw_rect(drw, 0, 0, mw, mh, 1, 1);
@@ -206,7 +206,7 @@ drawmenu(void)
 	curpos = TEXTW(text) - TEXTW(&text[cursor]);
 	if ((curpos += lrpad / 2 - 1) < w) {
 		drw_setscheme(drw, scheme[SchemeNorm]);
-		drw_rect(drw, x + curpos, 2, 2, bh - 4, 1, 0);
+		drw_rect(drw, x + curpos, 2 + (bh-fh)/2, 2, fh - 4, 1, 0);
 	}
 
 	recalculatenumbers();
@@ -423,8 +423,8 @@ keypress(XKeyEvent *ev)
 			break;
 		case XK_v: /* paste selection */
 		case XK_V:
-			XConvertSelection(dpy, (ev->state & ShiftMask) ? clip : XA_PRIMARY,
-			                  utf8, utf8, win, CurrentTime);
+			/* XConvertSelection(dpy, (ev->state & ShiftMask) ? clip : XA_PRIMARY, */
+			XConvertSelection(dpy, clip, utf8, utf8, win, CurrentTime);
 			return;
 		case XK_Left:
 			movewordedge(-1);
@@ -451,10 +451,12 @@ keypress(XKeyEvent *ev)
 			goto draw;
 		case XK_g: ksym = XK_Home;  break;
 		case XK_G: ksym = XK_End;   break;
-		case XK_h: ksym = XK_Up;    break;
-		case XK_j: ksym = XK_Next;  break;
-		case XK_k: ksym = XK_Prior; break;
-		case XK_l: ksym = XK_Down;  break;
+		case XK_k: ksym = XK_Up;    break;
+		case XK_l: ksym = XK_Next;  break;
+		case XK_h: ksym = XK_Prior; break;
+		case XK_j: ksym = XK_Down;  break;
+		case XK_v: ksym = XK_Delete;
+                   XConvertSelection(dpy, clip, utf8, utf8, win, CurrentTime); break;
 		default:
 			return;
 		}
@@ -792,6 +794,7 @@ setup(void)
 
 	/* calculate menu geometry */
 	bh = drw->fonts->h + 2;
+	bh = MAX(bh,lineheight);	/* make a menu line AT LEAST 'lineheight' tall */
 	lines = MAX(lines, 0);
 	mh = (lines + 1) * bh;
 #ifdef XINERAMA
@@ -874,6 +877,7 @@ static void
 usage(void)
 {
 	fputs("usage: dmenu [-bfiv] [-l lines] [-p prompt] [-fn font] [-m monitor]\n"
+	      "             [-h height]\n"
 	      "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]\n", stderr);
 	exit(1);
 }
@@ -911,6 +915,10 @@ main(int argc, char *argv[])
 			prompt = argv[++i];
 		else if (!strcmp(argv[i], "-fn"))  /* font or font set */
 			fonts[0] = argv[++i];
+		else if(!strcmp(argv[i], "-h")) { /* minimum height of one menu line */
+			lineheight = atoi(argv[++i]);
+			lineheight = MAX(lineheight,8); /* reasonable default in case of value too small/negative */
+		}
 		else if (!strcmp(argv[i], "-nb"))  /* normal background color */
 			colors[SchemeNorm][ColBg] = argv[++i];
 		else if (!strcmp(argv[i], "-nf"))  /* normal foreground color */
